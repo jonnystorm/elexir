@@ -40,6 +40,7 @@ Cycles are bounded by the maximum number of times any one node (token) should be
 
 1. Build finite state machine
 
+    ```elixir
     # last transition                             next state            # times transition seen
     %{{nil, :begin}                          => %{"an-token"         => 5}},
       {:begin, "an-token"}                   => %{"user-input1"      => 3,
@@ -57,9 +58,11 @@ Cycles are bounded by the maximum number of times any one node (token) should be
       {"another-token", "some-other-token"}  => %{:end,              => 5}},
       {"some-other-token", :end}             => %{}},
     }
+    ```
 
 1. Replace most infrequent tokens with holes
 
+    ```elixir
     # last transition                             next transition       # times transition seen
     %{{nil, :begin}                          => %{"an-token"         => 5},
       {:begin, "an-token"}                   => %{:hole              => 5},
@@ -71,15 +74,20 @@ Cycles are bounded by the maximum number of times any one node (token) should be
       {"another-token", "some-other-token"}  => %{:end               => 5},
       {"some-other-token", :end}             => %{},
     }
+    ```
 
 1. Traverse FSM and produce path list
 
+    ```elixir
     [ [{"an-token", 5}, {:hole, 5}, {"another-token", 5}, {"some-other-token", 5}],
       [{"an-token", 5}, {:hole, 5}, {"another-token", 5}, {"another-token", 1}, {"some-other-token", 1}],
     ]
+    ```
 
 1. Output regexp matching each path
 
+    ```elixir
     ~r/^an-token \S+ another-token some-other-token$/
     ~r/^an-token \S+ another-token another-token some-other-token$/
+    ```
 
