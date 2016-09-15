@@ -1,6 +1,6 @@
 # elexir
 
-**TODO: Add description**
+A lexical thing written in Elixir
 
 ## Installation
 
