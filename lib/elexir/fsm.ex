@@ -6,6 +6,52 @@
 defmodule Elexir.FSM do
   @moduledoc false
 
+  require Logger
+
+  defp _find_all_paths(_path, [], _fsm, acc) do
+    Enum.reverse(acc)
+  end
+  defp _find_all_paths([], [[]|q], fsm, acc) do
+    _find_all_paths([], q, fsm, acc)
+  end
+  defp _find_all_paths(path, [[{:end, _}|t]|q], fsm, acc) do
+    [{:begin, 0}|completed_path] = Enum.reverse(path)
+
+    _find_all_paths(path, [t|q], fsm, [completed_path|acc])
+  end
+  defp _find_all_paths([_|path], [[]|q], fsm, acc) do
+    _find_all_paths(path, q, fsm, acc)
+  end
+  defp _find_all_paths([{last_state, _}|_] = path, [[h|t]|q], fsm, acc) do
+    {state, _}  = h
+    transition  = {last_state, state}
+
+    :ok = Logger.debug("Now at state #{inspect state}. Last state was #{inspect last_state}.")
+
+    next_states_map = fsm[transition]
+
+    if is_nil(next_states_map) do
+      IO.inspect(transition)
+    end
+
+    next_states = Enum.into(next_states_map, [])
+
+    _find_all_paths([h|path], [next_states, t|q], fsm, acc)
+  end
+
+  def find_all_paths(state_machine) do
+    initial_transition = {nil, :begin}
+    next_states = Enum.into(state_machine[initial_transition], [])
+
+    if is_nil(next_states) do
+      :ok = Logger.error("No next-states for :begin transition in the given state machine!")
+
+      {:error, :einval}
+    end
+
+    _find_all_paths([{:begin, 0}], [next_states], state_machine, [])
+  end
+
   defp _paths_to_patterns([], {_, regexps}) do
     Enum.reverse(regexps)
   end

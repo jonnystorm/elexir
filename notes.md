@@ -1,7 +1,7 @@
 ### 2016-09-14 08:54
 
-Write grammar generator for dealing with network device syntax.
-Generator regex, replacing infrequently occurring tokens with "holes" (\S+).
+Write pattern generator for dealing with network device syntax.
+Generator regex, replacing infrequently occurring tokens with "holes" (`\S+`).
 For a large enough data set, it is assumed frequently occuring tokens are built-in syntax.
 Holes are to match user input.
 Frequency is determined by a count kept for each token transition.
@@ -88,4 +88,12 @@ Cycles are bounded by the maximum number of times any one node (token) should be
     ~r/^an-token \S+ another-token some-other-token$/
     ~r/^an-token \S+ another-token another-token some-other-token$/
     ```
+
+### 2016-09-15 21:54
+
+What to call this thing?
+
+It's almost a first order Markov chain, but edges leaving a node don't always add up to 100%.
+Also, there's a notion called *lumpability* that seems analogous to the "holes" being inserted.
+However, lumpability only applies to continuous-time Markov chains, and I have yet to find a similar definition for discrete time in the literature.
 

@@ -7,7 +7,8 @@ defmodule Elexir do
   def generate_patterns(input_string) when is_binary input_string do
     input_string
       |> Elexir.FSM.string_to_state_machine
-      |> Elexir.FSM.replace_states_with_input_weight_below_threshold()  # WAT
+      |> Elexir.FSM.merge_low_probability_states(0.10)
+      |> Elexir.FSM.find_all_paths
       |> Elexir.FSM.paths_to_patterns
   end
 end
