@@ -101,8 +101,8 @@ defmodule Elexir.FSMTest do
       }
 
     assert find_all_paths(fsm) ==
-      [ [{"an-token", 5}, {:hole, 5}, {"another-token", 5}, {"another-token", 1}, {"some-other-token", 1}],
-        [{"an-token", 5}, {:hole, 5}, {"another-token", 5}, {"some-other-token", 4}],
+      [ [{"an-token", 5}, {:hole, 5}, {"another-token", 5}, {"some-other-token", 4}],
+        [{"an-token", 5}, {:hole, 5}, {"another-token", 5}, {"another-token", 1}, {"some-other-token", 1}],
       ]
   end
 end

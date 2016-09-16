@@ -8,8 +8,14 @@ defmodule Elexir.FSM do
 
   require Logger
 
+  defp calculate_path_weight(path) do
+    path
+      |> Enum.map(& elem(&1, 1))
+      |> Enum.sum
+  end
+
   defp _find_all_paths(_path, [], _fsm, acc) do
-    Enum.reverse(acc)
+    Enum.sort_by(acc, &calculate_path_weight/1, &>=/2)
   end
   defp _find_all_paths([], [[]|q], fsm, acc) do
     _find_all_paths([], q, fsm, acc)
