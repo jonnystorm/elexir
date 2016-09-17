@@ -42,19 +42,19 @@ Cycles are bounded by the maximum number of times any one node (token) should be
 
     ```elixir
     # last transition                             next state            # times transition seen
-    %{{nil, :begin}                          => %{"an-token"         => 5}},
+    %{{nil, :begin}                          => %{"an-token"         => 5},
       {:begin, "an-token"}                   => %{"user-input1"      => 3,
                                                   "user-input2"      => 2,
                                                 },
-      {"an-token", "user-input1"}            => %{"another-token"    => 3}},
-      {"an-token", "user-input2"}            => %{"another-token"    => 2}},
+      {"an-token", "user-input1"}            => %{"another-token"    => 3},
+      {"an-token", "user-input2"}            => %{"another-token"    => 2},
       {"user-input1", "another-token"}       => %{"some-other-token" => 2,
                                                   "another-token"    => 1,
                                                 },
-      {"user-input2", "another-token"}       => %{"some-other-token" => 2}},
-      {"another-token", "another-token"}     => %{"some-other-token" => 1}},
-      {"another-token", "some-other-token"}  => %{:end,              => 5}},
-      {"some-other-token", :end}             => %{}},
+      {"user-input2", "another-token"}       => %{"some-other-token" => 2},
+      {"another-token", "another-token"}     => %{"some-other-token" => 1},
+      {"another-token", "some-other-token"}  => %{:end               => 5},
+      {"some-other-token", :end}             => %{},
     }
     ```
 

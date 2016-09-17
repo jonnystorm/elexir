@@ -45,7 +45,7 @@ defmodule Elexir.FSM do
     _find_all_paths([h|path], [next_states, t|q], fsm, acc)
   end
 
-  def find_all_paths(state_machine) do
+  def find_all_paths(state_machine) when is_map state_machine do
     initial_transition = {nil, :begin}
     next_states = Enum.into(state_machine[initial_transition], [])
 
@@ -56,6 +56,66 @@ defmodule Elexir.FSM do
     end
 
     _find_all_paths([{:begin, 0}], [next_states], state_machine, [])
+  end
+
+  defp merge_maps_by_adding_values(map1, map2) do
+    Map.merge(map1, map2, fn(_, a, b) -> a + b end)
+  end
+
+  defp replace_states(fsm, replace_map, new_state) do
+    fsm
+      |> Enum.map(fn {{s1, s2}, next_states} ->
+        new_s1 = (Map.has_key?(replace_map, s1) && new_state) || s1
+        new_s2 = (Map.has_key?(replace_map, s2) && new_state) || s2
+
+        new_next_states =
+          Enum.reduce(next_states, %{}, fn({state, count}, acc) ->
+            if Map.has_key?(replace_map, state) do
+              merge_maps_by_adding_values(acc, %{new_state => count})
+
+            else
+              merge_maps_by_adding_values(acc, %{state => count})
+            end
+          end)
+
+        {{new_s1, new_s2}, new_next_states}
+      end)
+      |> Enum.reduce(%{}, fn({{s1, s2}, next_states}, acc) ->
+        Map.merge(acc, %{{s1, s2} => next_states}, fn(_, a, b) ->
+          merge_maps_by_adding_values(a, b)
+        end)
+      end)
+  end
+
+  defp ceiling(0), do: 0
+  defp ceiling(num) when trunc(num) / num  < 1.0, do: trunc(num + 1)
+  defp ceiling(num) when trunc(num) / num == 1.0, do: trunc(num)
+
+  def merge_low_probability_states(state_machine, threshold)
+      when 0 <= threshold and threshold <= 1 do
+
+    transitions_per_state =
+      state_machine
+        |> Map.values
+        |> Enum.reduce(%{}, fn(next_states, acc) ->
+          acc
+            |> merge_maps_by_adding_values(next_states)
+            |> Map.delete(:end)
+        end)
+
+    total_transitions = Enum.sum Map.values(transitions_per_state)
+      min_transitions = ceiling(total_transitions * threshold)
+
+    low_probability_states =
+      transitions_per_state
+        |> Stream.filter(& elem(&1, 1) < min_transitions)
+        |> Stream.filter(& elem(&1, 0) != :end)
+        |> Enum.into(%{})
+
+    :ok = Logger.debug("Found #{total_transitions} transitions in state machine.")
+    :ok = Logger.debug("Found the following states with fewer than #{min_transitions} transitions: #{inspect low_probability_states}.")
+
+    replace_states(state_machine, low_probability_states, :hole)
   end
 
   defp _paths_to_patterns([], {_, regexps}) do

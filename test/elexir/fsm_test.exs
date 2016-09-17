@@ -105,4 +105,84 @@ defmodule Elexir.FSMTest do
         [{"an-token", 5}, {:hole, 5}, {"another-token", 5}, {"another-token", 1}, {"some-other-token", 1}],
       ]
   end
+
+  test "raises error for probability threshold less than 0" do
+    assert_raise FunctionClauseError, fn ->
+      merge_low_probability_states(%{}, -0.1)
+    end
+  end
+
+  test "raises error for probability threshold greater than 1" do
+    assert_raise FunctionClauseError, fn ->
+      merge_low_probability_states(%{}, 1.1)
+    end
+  end
+
+  test "creates no holes in empty state machine" do
+    fsm = %{{nil, :begin}  => %{:end => 1}, {:begin, :end} => %{}}
+
+    assert merge_low_probability_states(fsm, 1) == fsm
+  end
+
+  test "creates no holes in state machine with only one state" do
+    fsm =
+      %{{nil, :begin}        => %{"an-token" => 1},
+        {:begin, "an-token"} => %{:end => 1},
+        {"an-token", :end}   => %{},
+      }
+
+    assert merge_low_probability_states(fsm, 1) == fsm
+  end
+
+  test "converts a low-probability state to a hole" do
+    fsm =
+      %{{nil, :begin}                      => %{"high-probability state" => 2,
+                                                "low-probability state"  => 1
+                                              },
+        {:begin, "high-probability state"} => %{:end => 2},
+        {:begin, "low-probability state"}  => %{:end => 1},
+        {"high-probability state", :end}   => %{},
+        {"low-probability state", :end}    => %{},
+      }
+
+    assert merge_low_probability_states(fsm, 2/3) ==
+      %{{nil, :begin}                      => %{"high-probability state" => 2,
+                                                :hole                    => 1,
+                                              },
+        {:begin, "high-probability state"} => %{:end => 2},
+        {:begin, :hole}                    => %{:end => 1},
+        {"high-probability state", :end}   => %{},
+        {:hole, :end}                      => %{},
+      }
+  end
+
+  test "merges low-probability states into holes" do
+    fsm =
+      %{{nil, :begin}                          => %{"an-token"         => 5},
+        {:begin, "an-token"}                   => %{"user-input1"      => 3,
+                                                    "user-input2"      => 2,
+                                                  },
+        {"an-token", "user-input1"}            => %{"another-token"    => 3},
+        {"an-token", "user-input2"}            => %{"another-token"    => 2},
+        {"user-input1", "another-token"}       => %{"some-other-token" => 2,
+                                                    "another-token"    => 1,
+                                                  },
+        {"user-input2", "another-token"}       => %{"some-other-token" => 2},
+        {"another-token", "another-token"}     => %{"some-other-token" => 1},
+        {"another-token", "some-other-token"}  => %{:end               => 5},
+        {"some-other-token", :end}             => %{},
+      }
+
+    assert merge_low_probability_states(fsm, 5/21) ==
+      %{{nil, :begin}                          => %{"an-token"         => 5},
+        {:begin, "an-token"}                   => %{:hole              => 5},
+        {"an-token", :hole}                    => %{"another-token"    => 5},
+        {:hole, "another-token"}               => %{"some-other-token" => 4,
+                                                    "another-token"    => 1,
+                                                  },
+        {"another-token", "another-token"}     => %{"some-other-token" => 1},
+        {"another-token", "some-other-token"}  => %{:end               => 5},
+        {"some-other-token", :end}             => %{},
+      }
+  end
 end
