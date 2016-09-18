@@ -97,3 +97,30 @@ It's almost a first order Markov chain, but edges leaving a node don't always ad
 Also, there's a notion called *lumpability* that seems analogous to the "holes" being inserted.
 However, lumpability only applies to continuous-time Markov chains, and I have yet to find a similar definition for discrete time in the literature.
 
+### 2016-09-17 22:11
+
+Writing integrated tests.
+
+As expected, a loop forms when a next-state is the same as the two previous states.
+Fortunately, a max loop counter is effectively included in every next-state entry.
+
+Much more interesting, however, is the following, larger loop.
+
+    22:44:12.135 [debug] Now at state :hole. Last state was "any".
+    22:44:12.135 [debug] Now at state :hole. Last state was :hole.
+    22:44:12.135 [info]  Loop detected at state :hole.
+    22:44:12.135 [debug] Now at state "log". Last state was :hole.
+    22:44:12.135 [debug] Now at state "any". Last state was :hole.
+    22:44:12.135 [debug] Now at state :hole. Last state was "any".
+    22:44:12.135 [debug] Now at state :hole. Last state was :hole.
+    22:44:12.135 [info]  Loop detected at state :hole.
+
+
+A global, TTL-like counter could handle this, but I'm not happy with the imprecision of that mechanism.
+Need to re-evaluate the traversal algorithm with an eye to loop prevention.
+
+### 2016-09-18 15:41
+
+Rather than consuming a queue of next-states, consuming the counters, next-states, and, finally, transitions, in the state-machine provides correct loop prevention.
+To do this, the last state and the next state must both come from the current path, but this makes more sense than keeping the two separate anyway.
+

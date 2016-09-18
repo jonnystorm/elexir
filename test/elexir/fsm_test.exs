@@ -3,6 +3,10 @@ defmodule Elexir.FSMTest do
 
   import Elexir.FSM
 
+  test "returns empty list for empty path" do
+    assert paths_to_patterns([[]]) == []
+  end
+
   test "generates regex for path with one token" do
     paths = [[{"an-token", 1}]]
 
@@ -42,7 +46,7 @@ defmodule Elexir.FSMTest do
   test "finds no paths in state machine with only :begin and :end states" do
     fsm = %{{nil, :begin}  => %{:end => 1}, {:begin, :end} => %{}}
 
-    assert find_all_paths(fsm) == [[]]
+    assert find_all_paths(fsm) == []
   end
 
   test "finds path in state machine with only one state" do
@@ -87,7 +91,35 @@ defmodule Elexir.FSMTest do
     assert find_all_paths(fsm) == [[{"an-token", 1}, {"an-token", 1}]]
   end
 
-  test "finds all paths in cyclic state machine" do
+  test "finds all paths in a cyclic state machine" do
+    fsm =
+      %{{nil, :begin}   => %{:end  => 1,
+                             :hole => 2,
+                           },
+        {:begin, :hole} => %{:hole => 2},
+        {:hole, :hole}  => %{:end  => 1,
+                             :hole => 9,
+                             "any" => 2,
+                           },
+        {:hole, "any"}  => %{:hole => 1,
+                             "any" => 1,
+                           },
+        {"any", :hole}  => %{:end  => 1,
+                             :hole => 1,
+                           },
+        {"any", "any"}  => %{:hole => 1},
+        {:begin, :end}  => %{},
+        {:hole, :end}   => %{},
+      }
+
+    assert find_all_paths(fsm) ==
+      [ [{:hole, 2}, {:hole, 2}],
+        [{:hole, 2}, {:hole, 2}, {:hole, 9}, {"any", 2}, {:hole, 1}],
+        [{:hole, 2}, {:hole, 2}, {:hole, 9}, {"any", 2}, {"any", 1}, {:hole, 1}],
+      ]
+  end
+
+  test "finds all paths in another cyclic state machine" do
     fsm =
       %{{nil, :begin}                          => %{"an-token"         => 5},
         {:begin, "an-token"}                   => %{:hole              => 5},
@@ -101,8 +133,8 @@ defmodule Elexir.FSMTest do
       }
 
     assert find_all_paths(fsm) ==
-      [ [{"an-token", 5}, {:hole, 5}, {"another-token", 5}, {"some-other-token", 4}],
-        [{"an-token", 5}, {:hole, 5}, {"another-token", 5}, {"another-token", 1}, {"some-other-token", 1}],
+      [ [{"an-token", 5}, {:hole, 5}, {"another-token", 5}, {"another-token", 1}, {"some-other-token", 1}],
+        [{"an-token", 5}, {:hole, 5}, {"another-token", 5}, {"some-other-token", 4}],
       ]
   end
 

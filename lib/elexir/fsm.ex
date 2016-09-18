@@ -14,40 +14,55 @@ defmodule Elexir.FSM do
       |> Enum.sum
   end
 
-  defp _find_all_paths(_path, [], _fsm, acc) do
-    Enum.sort_by(acc, &calculate_path_weight/1, &>=/2)
+  defp _find_all_paths([{nil, _}], _context, acc) do
+    Enum.sort_by(acc, &calculate_path_weight/1, &<=/2)
   end
-  defp _find_all_paths([], [[]|q], fsm, acc) do
-    _find_all_paths([], q, fsm, acc)
+  defp _find_all_paths(_path, [], acc) do
+    Enum.sort_by(acc, &calculate_path_weight/1, &<=/2)
   end
-  defp _find_all_paths(path, [[{:end, _}|t]|q], fsm, acc) do
-    [{:begin, 0}|completed_path] = Enum.reverse(path)
-
-    _find_all_paths(path, [t|q], fsm, [completed_path|acc])
+  defp _find_all_paths(
+    [{:end, _}|[{:begin, _}|_] = last_path],
+    [_|past_context],
+    acc
+  ) do
+    _find_all_paths(last_path, past_context, acc)
   end
-  defp _find_all_paths([_|path], [[]|q], fsm, acc) do
-    _find_all_paths(path, q, fsm, acc)
+  defp _find_all_paths([{:end, _}|last_path], [_|past_context], acc) do
+    [_, {:begin, _}|completed_path] = Enum.reverse(last_path)
+
+    new_acc = [completed_path|acc]
+
+    _find_all_paths(last_path, past_context, new_acc)
   end
-  defp _find_all_paths([{last_state, _}|_] = path, [[h|t]|q], fsm, acc) do
-    {state, _}  = h
-    transition  = {last_state, state}
+  defp _find_all_paths([_|path], [fsm|context], acc) when fsm == %{} do
+    _find_all_paths(path, context, acc)
+  end
+  defp _find_all_paths(
+    [{state, _}|[{last_state, _}|_] = last_path] = path,
+    [fsm|past_context],
+    acc
+  ) do
+    :ok = Logger.debug("Transitioning from state #{inspect last_state} to state #{inspect state}.")
+    :ok = Logger.debug("Current context is #{inspect fsm}.")
+    :ok = Logger.debug("Path is #{inspect path}.")
 
-    :ok = Logger.debug("Now at state #{inspect state}. Last state was #{inspect last_state}.")
+    case take_next_state(fsm, {last_state, state}) do
+      {nil, _} ->
+        [_|next_path]    = last_path
+        [_|next_context] = past_context
 
-    next_states_map = fsm[transition]
+        _find_all_paths(next_path, next_context, acc)
 
-    if is_nil(next_states_map) do
-      IO.inspect(transition)
+      {next_state, new_fsm} ->
+        next_path = [next_state|path]
+
+        _find_all_paths(next_path, [new_fsm, new_fsm|past_context], acc)
     end
-
-    next_states = Enum.into(next_states_map, [])
-
-    _find_all_paths([h|path], [next_states, t|q], fsm, acc)
   end
 
   def find_all_paths(state_machine) when is_map state_machine do
     initial_transition = {nil, :begin}
-    next_states = Enum.into(state_machine[initial_transition], [])
+    next_states = state_machine[initial_transition]
 
     if is_nil(next_states) do
       :ok = Logger.error("No next-states for :begin transition in the given state machine!")
@@ -55,7 +70,34 @@ defmodule Elexir.FSM do
       {:error, :einval}
     end
 
-    _find_all_paths([{:begin, 0}], [next_states], state_machine, [])
+    begin_count = Enum.sum(Map.values(next_states)) - 1
+    initial_path = [{:begin, begin_count}, {nil, begin_count}]
+
+    _find_all_paths(initial_path, [state_machine, state_machine], [])
+  end
+
+  defp _take_next_state(fsm, transition) do
+    Map.get_and_update(fsm, transition, fn
+      nil ->
+        {nil, fsm}
+
+      next_states ->
+        case Enum.take(next_states, 1) do
+          [] ->
+            {nil, []}
+
+          [{state, _} = entry] ->
+            {entry, Map.delete(next_states, state)}
+        end
+    end)
+  end
+
+  defp take_next_state(fsm, transition) do
+    with {entry, %{^transition => next_states}} when next_states == %{} <-
+        _take_next_state(fsm, transition)
+    do
+      {entry, Map.delete(fsm, transition)}
+    end
   end
 
   defp merge_maps_by_adding_values(map1, map2) do
@@ -137,6 +179,7 @@ defmodule Elexir.FSM do
     _paths_to_patterns([rest | paths], {"#{pattern} #{token}", regexps})
   end
 
+  def paths_to_patterns([[]]), do: []
   def paths_to_patterns([[{token, _}|rest] | paths]) do
     _paths_to_patterns([rest | paths], {token, []})
   end
