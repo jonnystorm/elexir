@@ -140,4 +140,43 @@ defmodule Elexir.FSM do
   def paths_to_patterns([[{token, _}|rest] | paths]) do
     _paths_to_patterns([rest | paths], {token, []})
   end
+
+  defp merge_state_machines(fsm1, fsm2) do
+    Map.merge(fsm1, fsm2, fn(_, next_states1, next_states2) ->
+      merge_maps_by_adding_values(next_states1, next_states2)
+    end)
+  end
+
+  defp _line_to_state_machine([], {_, :end} = transition, acc) do
+    entry = %{transition => %{}}
+
+    merge_state_machines(acc, entry)
+  end
+  defp _line_to_state_machine([], {_, state} = transition, acc) do
+    next_transition = {state, :end}
+    entry = %{transition => %{:end => 1}}
+    next_acc = merge_state_machines(acc, entry)
+
+    _line_to_state_machine([], next_transition, next_acc)
+  end
+  defp _line_to_state_machine([next_state|rest], {_, state} = transition, acc) do
+    next_transition = {state, next_state}
+    entry = %{transition => %{next_state => 1}}
+    next_acc = merge_state_machines(acc, entry)
+
+    _line_to_state_machine(rest, next_transition, next_acc)
+  end
+
+  defp line_to_state_machine(string) do
+    _line_to_state_machine(String.split(string), {nil, :begin}, %{})
+  end
+
+  def string_to_state_machine(string) when is_binary string do
+    string
+      |> String.split("\n")
+      |> Enum.map(&line_to_state_machine/1)
+      |> Enum.reduce(%{}, fn(line_fsm, acc) ->
+        merge_state_machines(acc, line_fsm)
+      end)
+  end
 end

@@ -185,4 +185,52 @@ defmodule Elexir.FSMTest do
         {"some-other-token", :end}             => %{},
       }
   end
+
+  test "converts the empty string to an empty state machine" do
+    fsm = %{{nil, :begin} => %{:end => 1}, {:begin, :end} => %{}}
+
+    assert string_to_state_machine("") == fsm
+  end
+
+  test "converts a string with one token to a state machine with only one state" do
+    fsm =
+      %{{nil, :begin}        => %{"an-token" => 1},
+        {:begin, "an-token"} => %{:end => 1},
+        {"an-token", :end}   => %{},
+      }
+
+    assert string_to_state_machine("an-token") == fsm
+  end
+
+  test "converts a multi-line string to a state machine" do
+    fsm =
+      %{{nil, :begin}                          => %{"an-token"         => 5,
+                                                    :end               => 1,
+                                                  },
+        {:begin, "an-token"}                   => %{"user-input1"      => 3,
+                                                    "user-input2"      => 2,
+                                                  },
+        {"an-token", "user-input1"}            => %{"another-token"    => 3},
+        {"an-token", "user-input2"}            => %{"another-token"    => 2},
+        {"user-input1", "another-token"}       => %{"some-other-token" => 2,
+                                                    "another-token"    => 1,
+                                                  },
+        {"user-input2", "another-token"}       => %{"some-other-token" => 2},
+        {"another-token", "another-token"}     => %{"some-other-token" => 1},
+        {"another-token", "some-other-token"}  => %{:end               => 5},
+        {"some-other-token", :end}             => %{},
+        {:begin, :end}                         => %{},
+      }
+
+    string =
+      """
+      an-token user-input1 another-token some-other-token
+      an-token user-input1 another-token some-other-token
+      an-token user-input1 another-token another-token some-other-token
+      an-token user-input2 another-token some-other-token
+      an-token user-input2 another-token some-other-token
+      """
+
+    assert string_to_state_machine(string) == fsm
+  end
 end
